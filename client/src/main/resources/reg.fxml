@@ -5,7 +5,7 @@
 
     <Label text="Login:"/>
     <TextField fx:id="loginField" promptText="login"/>
-    <Label text="Passwors:"/>
+    <Label text="Password:"/>
     <PasswordField fx:id="passwordField" promptText="password"/>
 
     <Label text="Nickname:"/>
