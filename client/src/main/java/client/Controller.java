@@ -19,12 +19,10 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.stage.WindowEvent;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.Socket;
 import java.net.URL;
-import java.sql.*;
+import java.util.ArrayList;
 import java.util.ResourceBundle;
 
 public class Controller implements Initializable {
@@ -55,12 +53,15 @@ public class Controller implements Initializable {
     private boolean authenticated;
     private String nick;
 
-    private static Connection connection;
+    /*private static Connection connection;
     public static Statement stmt;
+    private PreparedStatement prepInsert;*/
 
-    private PreparedStatement prepInsert;
+    private FileInputStream fis;
+    private FileOutputStream fos;
+    private int SEOFL;
 
-    public void connectDB() throws ClassNotFoundException, SQLException {
+    /*public void connectDB() throws ClassNotFoundException, SQLException {
         Class.forName("org.sqlite.JDBC");
         connection = DriverManager.getConnection("jdbc:sqlite:client.db");
         stmt = connection.createStatement();
@@ -101,6 +102,23 @@ public class Controller implements Initializable {
             prepInsert.executeBatch();
             connection.setAutoCommit(true);
         } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }*/
+
+    public void loadFileData(DataInputStream dis) {
+        try {
+            ArrayList<String> history = new ArrayList<>();
+            while (dis.available() > 0) {
+                history.add(dis.readUTF());
+                dis.readInt();
+            }
+            int i = Math.min(history.size(), 100);
+            while (i > 0) {
+                textArea.appendText(history.get(history.size() - i) + "\n");
+                i--;
+            }
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
@@ -149,29 +167,28 @@ public class Controller implements Initializable {
             socket = new Socket(IP_ADDRESS, PORT);
             in = new DataInputStream(socket.getInputStream());
             out = new DataOutputStream(socket.getOutputStream());
-            try {
+            /*try {
                 connectDB();
                 prepInsert = connection.prepareStatement("INSERT INTO chatHistory (text) VALUES (?);");
                 connection.setAutoCommit(false);
             } catch (Exception e) {
                 e.printStackTrace();
-            }
-
+            }*/
             new Thread(() -> {
                 try {
                     //цикл аутентификации
                     while (true) {
                         String str = in.readUTF();
-
                         System.out.println(str);
 
                         if (str.equals("/end")) {
-                            disconnectDB();
+                            //disconnectDB();
                             throw new RuntimeException();
                         }
 
                         if (str.startsWith("/authok ")) {
                             nick = str.split(" ")[1];
+                            SEOFL = nick.hashCode();
                             setAuthenticated(true);
                             break;
                         }
@@ -180,14 +197,26 @@ public class Controller implements Initializable {
                     }
 
                     //цикл работы
-                    loadData();
+                    fos = new FileOutputStream(new File("history_" + loginField.getText() + ".txt"), true);
+                    fis = new FileInputStream("history_" + loginField.getText() + ".txt");
+                    BufferedOutputStream bufos = new BufferedOutputStream(fos);
+                    DataInputStream dis = new DataInputStream(fis);
+                    DataOutputStream dos = new DataOutputStream(bufos);
+                    loadFileData(dis);
+                    //loadData();
                     while (true) {
-                        String str = in.readUTF();
 
+                        String str = in.readUTF();
                         if (str.startsWith("/")) {
                             if (str.equals("/end")) {
-                                dataInDB();
-                                disconnectDB();
+                                //dataInDB();
+                                //disconnectDB();
+                                dis.close();
+                                fis.close();
+
+                                dos.close();
+                                bufos.close();
+                                fos.close();
                                 break;
                             }
 
@@ -202,7 +231,9 @@ public class Controller implements Initializable {
                             }
 
                         } else {
-                            infoInData(str);
+                            //infoInData(str);
+                            dos.writeUTF(" " + str + " ");
+                            dos.writeInt(SEOFL);
                             textArea.appendText(str + "\n");
                         }
                     }
