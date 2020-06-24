@@ -24,6 +24,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.URL;
+import java.sql.*;
 import java.util.ResourceBundle;
 
 public class Controller implements Initializable {
@@ -54,6 +55,56 @@ public class Controller implements Initializable {
     private boolean authenticated;
     private String nick;
 
+    private static Connection connection;
+    public static Statement stmt;
+
+    private PreparedStatement prepInsert;
+
+    public void connectDB() throws ClassNotFoundException, SQLException {
+        Class.forName("org.sqlite.JDBC");
+        connection = DriverManager.getConnection("jdbc:sqlite:client.db");
+        stmt = connection.createStatement();
+    }
+
+    public void disconnectDB() {
+        try {
+            stmt.close();
+            connection.close();
+            System.out.println("DataBase closed");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void loadData() {
+        try {
+            ResultSet data = stmt.executeQuery("SELECT * FROM chatHistory");
+            while (data.next()) {
+                textArea.appendText(data.getString("text") + "\n");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void infoInData(String text) {
+        try {
+            prepInsert.setString(1, text);
+            prepInsert.addBatch();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void dataInDB() {
+        try {
+            prepInsert.executeBatch();
+            connection.setAutoCommit(true);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
     public void setAuthenticated(boolean authenticated) {
         this.authenticated = authenticated;
         authPanel.setVisible(!authenticated);
@@ -80,7 +131,7 @@ public class Controller implements Initializable {
             stage.setOnCloseRequest(new EventHandler<WindowEvent>() {
                 @Override
                 public void handle(WindowEvent event) {
-                    System.out.println("bue");
+                    System.out.println("bye");
                     if (socket != null && !socket.isClosed()) {
                         try {
                             out.writeUTF("/end");
@@ -98,6 +149,13 @@ public class Controller implements Initializable {
             socket = new Socket(IP_ADDRESS, PORT);
             in = new DataInputStream(socket.getInputStream());
             out = new DataOutputStream(socket.getOutputStream());
+            try {
+                connectDB();
+                prepInsert = connection.prepareStatement("INSERT INTO chatHistory (text) VALUES (?);");
+                connection.setAutoCommit(false);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
 
             new Thread(() -> {
                 try {
@@ -108,6 +166,7 @@ public class Controller implements Initializable {
                         System.out.println(str);
 
                         if (str.equals("/end")) {
+                            disconnectDB();
                             throw new RuntimeException();
                         }
 
@@ -116,16 +175,19 @@ public class Controller implements Initializable {
                             setAuthenticated(true);
                             break;
                         }
-
+                        String[] token = str.split(" ", 1);
                         textArea.appendText(str + "\n");
                     }
 
                     //цикл работы
+                    loadData();
                     while (true) {
                         String str = in.readUTF();
 
                         if (str.startsWith("/")) {
                             if (str.equals("/end")) {
+                                dataInDB();
+                                disconnectDB();
                                 break;
                             }
 
@@ -140,10 +202,11 @@ public class Controller implements Initializable {
                             }
 
                         } else {
+                            infoInData(str);
                             textArea.appendText(str + "\n");
                         }
                     }
-                }catch (RuntimeException e){
+                } catch (RuntimeException e) {
                     System.out.println("re");
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -225,8 +288,8 @@ public class Controller implements Initializable {
         regStage.show();
     }
 
-    public void tryRegistration(String login, String password ,String nickname){
-        String msg = String.format("/reg %s %s %s", login, password ,nickname);
+    public void tryRegistration(String login, String password, String nickname) {
+        String msg = String.format("/reg %s %s %s", login, password, nickname);
 
         if (socket == null || socket.isClosed()) {
             connect();

@@ -4,6 +4,10 @@ package server;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.List;
 import java.util.Vector;
 
@@ -35,6 +39,7 @@ public class Server {
         } finally {
             try {
                 server.close();
+                authService.disconnect();
             } catch (IOException e) {
                 e.printStackTrace();
             }

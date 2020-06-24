@@ -66,7 +66,7 @@ public class ClientHandler {
                                     sendMsg("/authok " + newNick);
                                     nick = newNick;
                                     server.subscribe(this);
-                                    System.out.println("Клиент: " + nick + " подключился"+ socket.getRemoteSocketAddress());
+                                    System.out.println("Клиент: " + nick + " подключился" + socket.getRemoteSocketAddress());
                                     socket.setSoTimeout(0);
                                     break;
                                 } else {
@@ -96,11 +96,15 @@ public class ClientHandler {
 
                                 server.privateMsg(this, token[1], token[2]);
                             }
+                            if (str.startsWith("/cn")) {
+                                String[] token = str.split(" ", 3);
+                                server.getAuthService().changeNick(this, token[2], token[1]);
+                            }
                         } else {
                             server.broadcastMsg(nick, str);
                         }
                     }
-                }catch (SocketTimeoutException e){
+                } catch (SocketTimeoutException e) {
                     sendMsg("/end");
                 }
                 ///////
@@ -129,6 +133,10 @@ public class ClientHandler {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public void changeNick(String newNick) {
+        nick = newNick;
     }
 
     public String getNick() {
