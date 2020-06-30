@@ -10,11 +10,14 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
 import java.util.Vector;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 
 public class Server {
     private List<ClientHandler> clients;
     private AuthService authService;
+    public ExecutorService executorService = Executors.newFixedThreadPool(8);
 
     public Server() {
         clients = new Vector<>();
@@ -38,6 +41,7 @@ public class Server {
             e.printStackTrace();
         } finally {
             try {
+                executorService.shutdown();
                 server.close();
                 authService.disconnect();
             } catch (IOException e) {
