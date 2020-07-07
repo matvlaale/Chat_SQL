@@ -5,6 +5,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.util.logging.Level;
 
 public class ClientHandler {
     private Server server;
@@ -78,11 +79,14 @@ public class ClientHandler {
                         }
                     }
 
+                    server.clientStatus(true);
+
                     //цикл работы
                     while (true) {
                         String str = in.readUTF();
 
                         if (str.startsWith("/")) {
+                            server.clientSentCommand();
                             if (str.equals("/end")) {
                                 sendMsg("/end");
                                 break;
@@ -101,6 +105,7 @@ public class ClientHandler {
                                 server.getAuthService().changeNick(this, token[2], token[1]);
                             }
                         } else {
+                            server.clientSentMessage();
                             server.broadcastMsg(nick, str);
                         }
                     }
@@ -109,13 +114,15 @@ public class ClientHandler {
                 }
                 ///////
                 catch (IOException e) {
+                    server.exceptionCH("IOException во время работы!");
                     e.printStackTrace();
                 } finally {
                     server.unsubscribe(this);
-                    System.out.println("Клиент отключился");
+                    server.clientStatus(false);
                     try {
                         socket.close();
                     } catch (IOException e) {
+                        server.exceptionCH("IOException во время закрытия соединения!");
                         e.printStackTrace();
                     }
                 }
@@ -123,6 +130,7 @@ public class ClientHandler {
 
 
         } catch (IOException e) {
+            server.exceptionCH("IOException во время работы!");
             e.printStackTrace();
         }
     }
@@ -131,6 +139,7 @@ public class ClientHandler {
         try {
             out.writeUTF(msg);
         } catch (IOException e) {
+            server.exceptionCH("IOException во время отправки сообщения!");
             e.printStackTrace();
         }
     }
